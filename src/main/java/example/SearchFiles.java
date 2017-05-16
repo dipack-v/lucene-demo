@@ -24,16 +24,23 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.Date;
+import java.util.HashMap;
+import java.util.Map;
 
 import org.apache.lucene.analysis.Analyzer;
-import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.IndexReader;
+import org.apache.lucene.index.Term;
+import org.apache.lucene.index.TermContext;
+import org.apache.lucene.queryparser.classic.QueryParser;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.ScoreDoc;
 import org.apache.lucene.search.TopDocs;
+import org.apache.lucene.search.similarities.ClassicSimilarity;
+import org.apache.lucene.search.spans.SpanQuery;
+import org.apache.lucene.search.spans.SpanTermQuery;
 import org.apache.lucene.store.FSDirectory;
 
 /** Simple command-line based search demo. */
@@ -50,7 +57,7 @@ public class SearchFiles {
       System.exit(0);
     }
 
-    String index = "index";
+    String index = "D:/index";
     String field = "contents";
     String queries = null;
     int repeat = 0;
@@ -88,7 +95,7 @@ public class SearchFiles {
     
     IndexReader reader = DirectoryReader.open(FSDirectory.open(Paths.get(index)));
     IndexSearcher searcher = new IndexSearcher(reader);
-    Analyzer analyzer = new StandardAnalyzer();
+    Analyzer analyzer = new PipeCharacterAnalyser();
 
     BufferedReader in = null;
     if (queries != null) {
@@ -125,7 +132,7 @@ public class SearchFiles {
         System.out.println("Time: "+(end.getTime()-start.getTime())+"ms");
       }
 
-      doPagingSearch(in, searcher, query, hitsPerPage, raw, queries == null && queryString == null);
+      doPagingSearch(in, searcher, query, hitsPerPage, raw, queries == null && queryString == null, reader);
 
       if (queryString != null) {
         break;
@@ -145,14 +152,34 @@ public class SearchFiles {
    * 
    */
   public static void doPagingSearch(BufferedReader in, IndexSearcher searcher, Query query, 
-                                     int hitsPerPage, boolean raw, boolean interactive) throws IOException {
+                                     int hitsPerPage, boolean raw, boolean interactive, IndexReader reader) throws IOException {
  
     // Collect enough docs to show 5 pages
     TopDocs results = searcher.search(query, 5 * hitsPerPage);
+    
+    
+   
+    
     ScoreDoc[] hits = results.scoreDocs;
+    int a = hits[0].doc;
+    
+    SpanTermQuery youtube = new SpanTermQuery(new Term("contents", "youtube"));
+
+    TopDocs docs = searcher.search(youtube, 10);
+    TermContext t;
+    Map<Term, TermContext> termContexts = new HashMap<Term, TermContext>();
+    
+    SpanQuery spanQuery = new SpanTermQuery(new Term("contents", "youtube"));
+
+   
+   
+    
+    searcher.setSimilarity(new ClassicSimilarity());
+
+  
     
     int numTotalHits = results.totalHits;
-    System.out.println(numTotalHits + " total matching documents");
+    System.out.println( a+ " total matching documents");
 
     int start = 0;
     int end = Math.min(numTotalHits, hitsPerPage);

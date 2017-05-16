@@ -10,9 +10,6 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 
 import org.apache.lucene.analysis.Analyzer;
-import org.apache.lucene.analysis.Tokenizer;
-import org.apache.lucene.analysis.miscellaneous.TrimFilter;
-import org.apache.lucene.analysis.util.CharTokenizer;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
 import org.apache.lucene.document.LongPoint;
@@ -28,8 +25,8 @@ import org.apache.lucene.store.FSDirectory;
 public class TopPhrases {
     public static void main(String[] args) throws IOException {
 
-        String indexPath = "D:/workspace/lucene-demo/index";
-        Path docDir = Paths.get("D:/workspace/lucene-demo/input/keywords.txt");
+        String indexPath = "D:/index";
+        Path docDir = Paths.get("D:/input/keywords.txt");
         Directory dir = FSDirectory.open(Paths.get(indexPath));
         Analyzer analyzer = new PipeCharacterAnalyser();
         IndexWriterConfig iwc = new IndexWriterConfig(analyzer);
@@ -82,26 +79,5 @@ public class TopPhrases {
     }
 }
 
-class PipeCharacterAnalyser extends Analyzer {
-    public PipeCharacterAnalyser() {
-        super();
-    }
 
-    @Override
-    protected TokenStreamComponents createComponents(String arg0) {
-        Tokenizer tokenizer = new PipeCharacterTokenizer();
-        return new TokenStreamComponents(tokenizer, new TrimFilter(tokenizer));
-    }
-}
 
-class PipeCharacterTokenizer extends CharTokenizer {
-    public PipeCharacterTokenizer() {
-        super();
-    }
-
-    @Override
-    protected boolean isTokenChar(final int character) {
-        return '|' != character;
-    }
-
-}

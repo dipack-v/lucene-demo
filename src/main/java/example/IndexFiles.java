@@ -59,10 +59,10 @@ public class IndexFiles {
                  + " [-index INDEX_PATH] [-docs DOCS_PATH] [-update]\n\n"
                  + "This indexes the documents in DOCS_PATH, creating a Lucene index"
                  + "in INDEX_PATH that can be searched with SearchFiles";
-    String indexPath = "index";
-    String docsPath = null;
+    String indexPath = "D:/index";
+    String docsPath = "D:/input/keywords.txt";
     boolean create = true;
-    for(int i=0;i<args.length;i++) {
+    /*for(int i=0;i<args.length;i++) {
       if ("-index".equals(args[i])) {
         indexPath = args[i+1];
         i++;
@@ -72,12 +72,8 @@ public class IndexFiles {
       } else if ("-update".equals(args[i])) {
         create = false;
       }
-    }
+    }*/
 
-    if (docsPath == null) {
-      System.err.println("Usage: " + usage);
-      System.exit(1);
-    }
 
     final Path docDir = Paths.get(docsPath);
     if (!Files.isReadable(docDir)) {
@@ -90,7 +86,7 @@ public class IndexFiles {
       System.out.println("Indexing to directory '" + indexPath + "'...");
 
       Directory dir = FSDirectory.open(Paths.get(indexPath));
-      Analyzer analyzer = new StandardAnalyzer();
+      Analyzer analyzer = new PipeCharacterAnalyser();
       IndexWriterConfig iwc = new IndexWriterConfig(analyzer);
 
       if (create) {
