@@ -8,17 +8,24 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.List;
 
 import org.apache.lucene.analysis.Analyzer;
+import org.apache.lucene.analysis.Tokenizer;
+import org.apache.lucene.analysis.miscellaneous.TrimFilter;
+import org.apache.lucene.analysis.util.CharTokenizer;
 import org.apache.lucene.document.Document;
-import org.apache.lucene.document.Field;
-import org.apache.lucene.document.LongPoint;
-import org.apache.lucene.document.StringField;
 import org.apache.lucene.document.TextField;
+import org.apache.lucene.index.DirectoryReader;
+import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.IndexWriterConfig;
 import org.apache.lucene.index.IndexWriterConfig.OpenMode;
 import org.apache.lucene.index.Term;
+import org.apache.lucene.misc.HighFreqTerms;
+import org.apache.lucene.misc.HighFreqTerms.DocFreqComparator;
+import org.apache.lucene.misc.TermStats;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
 
@@ -26,41 +33,29 @@ public class TopPhrases {
     public static void main(String[] args) throws IOException {
 
         String indexPath = "D:/index";
-        Path docDir = Paths.get("D:/input/keywords.txt");
-        Directory dir = FSDirectory.open(Paths.get(indexPath));
+        Path docPath = Paths.get("D:/workspace/lucene-demo/input/keywords.txt");
+        Directory directory = FSDirectory.open(Paths.get(indexPath));
+        
+        
         Analyzer analyzer = new PipeCharacterAnalyser();
         IndexWriterConfig iwc = new IndexWriterConfig(analyzer);
         iwc.setOpenMode(OpenMode.CREATE);
-        IndexWriter writer = new IndexWriter(dir, iwc);
-        indexDoc(writer, docDir, Files.getLastModifiedTime(docDir).toMillis());
+        
+        IndexWriter writer = new IndexWriter(directory, iwc);
+        indexDoc(writer, docPath);
+        System.out.println("Done Indexing...");
+        writer.close();
+        
+        IndexReader reader = DirectoryReader.open(directory);
+        findTopPhrases(reader);
+        reader.close();
+        directory.close();
 
     }
 
-    static void indexDoc(IndexWriter writer, Path file, long lastModified) throws IOException {
+    private static void indexDoc(IndexWriter writer, Path file) throws IOException {
         try (InputStream stream = Files.newInputStream(file)) {
-            // make a new, empty document
             Document doc = new Document();
-
-            // Add the path of the file as a field named "path". Use a
-            // field that is indexed (i.e. searchable), but don't tokenize
-            // the field into separate words and don't index term frequency
-            // or positional information:
-            Field pathField = new StringField("path", file.toString(), Field.Store.YES);
-            doc.add(pathField);
-
-            // Add the last modified date of the file a field named "modified".
-            // Use a LongPoint that is indexed (i.e. efficiently filterable with
-            // PointRangeQuery). This indexes to milli-second resolution, which
-            // is often too fine. You could instead create a number based on
-            // year/month/day/hour/minutes/seconds, down the resolution you require.
-            // For example the long value 2011021714 would mean
-            // February 17, 2011, 2-3 PM.
-            doc.add(new LongPoint("modified", lastModified));
-
-            // Add the contents of the file to a field named "contents". Specify a Reader,
-            // so that the text of the file is tokenized and indexed, but not stored.
-            // Note that FileReader expects the file to be in UTF-8 encoding.
-            // If that's not the case searching for special characters will fail.
             doc.add(new TextField("contents",
                     new BufferedReader(new InputStreamReader(stream, StandardCharsets.UTF_8))));
 
@@ -77,7 +72,50 @@ public class TopPhrases {
             }
         }
     }
+
+    private static void findTopPhrases(IndexReader reader) throws IOException {
+        DocFreqComparator cmp = new HighFreqTerms.DocFreqComparator();
+        TermStats[] highFreqTerms;
+        try {
+            highFreqTerms = HighFreqTerms.getHighFreqTerms(reader, 5000, "contents", cmp);
+            List<String> terms = new ArrayList<String>(highFreqTerms.length);
+            for (TermStats ts : highFreqTerms) {
+                System.out.println(">>>>" + ts.termtext.utf8ToString() + " count" + ts.totalTermFreq);
+                terms.add(ts.termtext.utf8ToString());
+            }
+
+            for (String term : terms) {
+                // System.out.println(">>>>" + term);
+            }
+        } catch (Exception e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        }
+
+        reader.close();
+    }
 }
 
+class PipeCharacterAnalyser extends Analyzer {
+    public PipeCharacterAnalyser() {
+        super();
+    }
 
+    @Override
+    protected TokenStreamComponents createComponents(String arg0) {
+        Tokenizer tokenizer = new PipeCharacterTokenizer();
+        return new TokenStreamComponents(tokenizer, new TrimFilter(tokenizer));
+    }
+}
 
+class PipeCharacterTokenizer extends CharTokenizer {
+    public PipeCharacterTokenizer() {
+        super();
+    }
+
+    @Override
+    protected boolean isTokenChar(final int character) {
+        return '|' != character;
+    }
+
+}
